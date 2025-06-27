@@ -71,7 +71,48 @@ export const productService = {
       throw new Error('Product not found');
     }
     
-    const deletedProduct = mockProducts.splice(index, 1)[0];
+const deletedProduct = mockProducts.splice(index, 1)[0];
     return { ...deletedProduct };
+  },
+
+  async getRecommendations(limit = 8) {
+    await delay(350);
+    
+    // Simulate user browsing history and preferences
+    const userPreferences = {
+      categories: ['Electronics', 'Sports & Outdoors', 'Clothing & Fashion'],
+      brands: ['Apple', 'Nike', 'Sony'],
+      priceRange: { min: 50, max: 1000 }
+    };
+    
+    // Filter products based on simulated preferences
+    let candidateProducts = mockProducts.filter(product => {
+      const inPriceRange = product.price >= userPreferences.priceRange.min && 
+                          product.price <= userPreferences.priceRange.max;
+      const isPreferredCategory = userPreferences.categories.includes(product.category);
+      const isPreferredBrand = userPreferences.brands.includes(product.brand);
+      const hasGoodRating = product.rating >= 4.0;
+      
+      // Weight the selection: preferred items more likely to be selected
+      return inPriceRange && (isPreferredCategory || isPreferredBrand || hasGoodRating);
+    });
+    
+    // If not enough candidates, include more products
+    if (candidateProducts.length < limit) {
+      const additionalProducts = mockProducts.filter(product => 
+        !candidateProducts.find(p => p.id === product.id) && product.rating >= 4.0
+      );
+      candidateProducts = [...candidateProducts, ...additionalProducts];
+    }
+    
+    // Sort by rating and randomize a bit for variety
+    candidateProducts.sort((a, b) => {
+      const ratingDiff = b.rating - a.rating;
+      const randomFactor = (Math.random() - 0.5) * 0.3; // Small random factor
+      return ratingDiff + randomFactor;
+    });
+    
+    // Return requested number of recommendations
+    return candidateProducts.slice(0, limit).map(product => ({ ...product }));
   }
 };

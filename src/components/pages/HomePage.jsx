@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination } from 'swiper/modules';
 import ApperIcon from '@/components/ApperIcon';
 import Button from '@/components/atoms/Button';
 import ProductCard from '@/components/molecules/ProductCard';
@@ -8,12 +10,20 @@ import Loading from '@/components/ui/Loading';
 import Error from '@/components/ui/Error';
 import { productService } from '@/services/api/productService';
 
+// Import Swiper styles
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+
 const HomePage = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [error, setError] = useState('');
-
+  const [recommendationsError, setRecommendationsError] = useState('');
+  const swiperRef = useRef(null);
   const categories = [
     {
       name: 'Electronics',
@@ -81,7 +91,7 @@ const HomePage = () => {
     loadHomeData();
   }, []);
 
-  const loadHomeData = async () => {
+const loadHomeData = async () => {
     setLoading(true);
     setError('');
     
@@ -100,10 +110,27 @@ const HomePage = () => {
       
       setFeaturedProducts(featured);
       setNewArrivals(newItems);
+      
+      // Load recommendations after main content
+      loadRecommendations();
     } catch (err) {
       setError('Failed to load products. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRecommendations = async () => {
+    setRecommendationsLoading(true);
+    setRecommendationsError('');
+    
+    try {
+      const recommendedProducts = await productService.getRecommendations(8);
+      setRecommendations(recommendedProducts);
+    } catch (err) {
+      setRecommendationsError('Failed to load recommendations.');
+    } finally {
+      setRecommendationsLoading(false);
     }
   };
 
@@ -369,6 +396,96 @@ const HomePage = () => {
               </motion.div>
             ))}
           </div>
+</div>
+      </section>
+
+      {/* Personalized Recommendations */}
+      <section className="py-20 bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold gradient-text mb-6">
+              Recommended for You
+            </h2>
+            <p className="text-xl text-secondary-600 max-w-2xl mx-auto">
+              Personalized product recommendations based on your browsing history
+            </p>
+          </motion.div>
+
+          {recommendationsLoading ? (
+            <div className="flex justify-center">
+              <Loading type="products" count={4} />
+            </div>
+          ) : recommendationsError ? (
+            <div className="text-center">
+              <Error message={recommendationsError} onRetry={loadRecommendations} />
+            </div>
+          ) : recommendations.length > 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="relative"
+            >
+              {/* Navigation Buttons */}
+              <div className="absolute top-1/2 -translate-y-1/2 -left-4 z-10">
+                <button
+                  onClick={() => swiperRef.current?.slidePrev()}
+                  className="w-12 h-12 bg-white shadow-lg rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors duration-200 group"
+                >
+                  <ApperIcon name="ChevronLeft" size={20} className="text-gray-600 group-hover:text-primary-600" />
+                </button>
+              </div>
+              <div className="absolute top-1/2 -translate-y-1/2 -right-4 z-10">
+                <button
+                  onClick={() => swiperRef.current?.slideNext()}
+                  className="w-12 h-12 bg-white shadow-lg rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors duration-200 group"
+                >
+                  <ApperIcon name="ChevronRight" size={20} className="text-gray-600 group-hover:text-primary-600" />
+                </button>
+              </div>
+
+              {/* Carousel */}
+              <Swiper
+                ref={swiperRef}
+                modules={[Navigation, Pagination]}
+                spaceBetween={24}
+                slidesPerView={1}
+                pagination={{ clickable: true, dynamicBullets: true }}
+                breakpoints={{
+                  640: {
+                    slidesPerView: 2,
+                    spaceBetween: 24,
+                  },
+                  768: {
+                    slidesPerView: 3,
+                    spaceBetween: 24,
+                  },
+                  1024: {
+                    slidesPerView: 4,
+                    spaceBetween: 32,
+                  },
+                }}
+                className="recommendation-swiper pb-12"
+              >
+                {recommendations.map((product, index) => (
+                  <SwiperSlide key={product.id}>
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <ProductCard product={product} />
+                    </motion.div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </motion.div>
+          ) : null}
         </div>
       </section>
     </motion.div>
